@@ -7,23 +7,41 @@ interface AdjacencyMatrixProps {
   nodes: Node[];
   isVisible: boolean;
   onClose: () => void;
+  onUpdateMatrix: (matrix: number[][]) => void;
 }
 
 export const AdjacencyMatrix: React.FC<AdjacencyMatrixProps> = ({
   nodes,
   isVisible,
-  onClose
+  onClose,
+  onUpdateMatrix
 }) => {
   const selectedNodes = nodes.filter(n => n.selected);
   
   if (!isVisible || selectedNodes.length < 2) return null;
 
-  const matrix = selectedNodes.map(nodeA => 
+  const initialMatrix = selectedNodes.map(nodeA => 
     selectedNodes.map(nodeB => {
       if (nodeA.id === nodeB.id) return 0;
       return Math.round(calculateDistance(nodeA, nodeB));
     })
   );
+  const [matrix, setMatrix] = React.useState<number[][]>(initialMatrix);
+  React.useEffect(() => {
+    setMatrix(initialMatrix);
+  }, [nodes, isVisible]);
+
+  const handleInputChange = (i: number, j: number, value: string) => {
+    const newMatrix = matrix.map(row => [...row]);
+    newMatrix[i][j] = Number(value);
+    setMatrix(newMatrix);
+  };
+
+  const handleUpdateMatrix = (newMatrix) => {
+    // Do something with newMatrix, e.g., update state and trigger tree reconstruction
+    setMatrix(newMatrix);
+    // ...any other logic you need
+  };
 
   return (
     <motion.div
@@ -74,7 +92,17 @@ export const AdjacencyMatrix: React.FC<AdjacencyMatrixProps> = ({
                           : 'bg-slate-800 text-white hover:bg-slate-700 transition-colors'
                       }`}
                     >
-                      {matrix[i][j] === 0 ? '∞' : matrix[i][j]}
+                      {i === j ? (
+                        '∞'
+                      ) : (
+                        <input
+                          type="number"
+                          className="w-14 bg-transparent text-white text-center border-none outline-none"
+                          value={matrix[i][j]}
+                          min={0}
+                          onChange={e => handleInputChange(i, j, e.target.value)}
+                        />
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -83,6 +111,14 @@ export const AdjacencyMatrix: React.FC<AdjacencyMatrixProps> = ({
           </table>
         </div>
         
+        <div className="flex justify-end mt-4">
+          <button
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
+            onClick={() => onUpdateMatrix(matrix)}
+          >
+            Update Tree
+          </button>
+        </div>
         <div className="mt-4 text-xs text-slate-400">
           <p>• Diagonal values represent no self-loops (∞)</p>
           <p>• Values represent Euclidean distances between nodes</p>

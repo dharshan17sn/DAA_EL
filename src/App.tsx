@@ -16,6 +16,7 @@ function App() {
   const [nodes, setNodes] = useState<Node[]>(INITIAL_NODES);
   const [animationSpeed, setAnimationSpeed] = useState(1);
   const [showWeights, setShowWeights] = useState(false);
+  const [adjacencyMatrix, setAdjacencyMatrix] = useState<number[][]>([]);
   
   const { 
     algorithmState, 
@@ -65,9 +66,14 @@ function App() {
     setShowWeights(prev => !prev);
   }, []);
 
+  const handleUpdateMatrix = (newMatrix: number[][]) => {
+    setAdjacencyMatrix(newMatrix);
+    // You may want to trigger a tree update here if needed
+  };
+
   const selectedNodes = nodes.filter(n => n.selected);
   const sourceNode = nodes.find(n => n.isSource);
-  const canSolve = selectedNodes.length >= 4 && !algorithmState.isRunning && sourceNode;
+  const canSolve = selectedNodes.length >= 4 && !algorithmState.isRunning && !!sourceNode;
   const complexity = calculateComplexity(selectedNodes.length);
 
   return (
@@ -193,6 +199,7 @@ function App() {
             nodes={nodes}
             isVisible={algorithmState.showMatrix}
             onClose={toggleMatrix}
+            onUpdateMatrix={handleUpdateMatrix}
           />
         )}
       </AnimatePresence>

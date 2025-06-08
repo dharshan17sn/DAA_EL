@@ -19,6 +19,16 @@ interface TreeNode {
   depth: number;
 }
 
+const numberToLetter = (num: number): string => {
+  if (typeof num !== 'number' || isNaN(num) || num < 0) return '?';
+  return String.fromCharCode(65 + num); // 65 is ASCII for 'A'
+};
+
+const extractNodeIndex = (nodeStr: string): number | null => {
+  const match = nodeStr.match(/^node-(\d+)$/);
+  return match ? Number(match[1]) : null;
+};
+
 export const StateSpaceTree: React.FC<StateSpaceTreeProps> = ({
   solutions,
   bestSolution,
@@ -30,6 +40,7 @@ export const StateSpaceTree: React.FC<StateSpaceTreeProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
+  const [showAllEdges, setShowAllEdges] = useState(false);
 
   const buildTree = (solutions: PartialSolution[]): TreeNode | null => {
     if (solutions.length === 0) return null;
@@ -113,16 +124,15 @@ export const StateSpaceTree: React.FC<StateSpaceTreeProps> = ({
       .attr("d", d3.linkVertical<any, TreeNode>()
         .x(d => d.x!)
         .y(d => d.y!)
-        .curve(d3.curveBumpY)
       )
       .attr("fill", "none")
-      .attr("stroke", "#475569")
-      .attr("stroke-width", d => {
+      .attr("stroke", showAllEdges ? "#fff" : "#475569")
+      .attr("stroke-width", showAllEdges ? 4 : (d => {
         const target = d.target as any;
         if (target.data.solution.isPruned) return 1;
         if (target.data.solution.isComplete && bestSolution?.id === target.data.solution.id) return 3;
         return 2;
-      })
+      }))
       .attr("stroke-dasharray", d => {
         const target = d.target as any;
         return target.data.solution.isPruned ? "5,5" : "none";
@@ -189,9 +199,16 @@ export const StateSpaceTree: React.FC<StateSpaceTreeProps> = ({
       .text(d => {
         const path = d.data.solution.path;
         if (isFullscreenMode && path.length > 1) {
-          return path.join('→');
+          return path.map(nodeStr => {
+            const idx = extractNodeIndex(nodeStr);
+            return idx !== null ? numberToLetter(idx) : '?';
+          }).join('→');
         }
-        return path.length > 0 ? path[path.length - 1] : "Root";
+        if (path.length > 0) {
+          const idx = extractNodeIndex(path[path.length - 1]);
+          return idx !== null ? numberToLetter(idx) : 'Root';
+        }
+        return "Root";
       });
 
     // Cost/bound labels
@@ -214,7 +231,7 @@ export const StateSpaceTree: React.FC<StateSpaceTreeProps> = ({
     if (isFullscreenMode) {
       nodes.on("click", function(event, d) {
         setSelectedNode(d.data);
-        
+        setShowAllEdges(true);
         // Highlight selected node
         nodes.selectAll("circle").attr("stroke-width", 2);
         d3.select(this).select("circle").attr("stroke-width", 4);

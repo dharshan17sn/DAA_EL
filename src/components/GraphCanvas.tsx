@@ -85,9 +85,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
                 y1={fromNode.y}
                 x2={toNode.x}
                 y2={toNode.y}
-                stroke={isInPath ? "#3B82F6" : "#334155"}
+                stroke={isInPath ? "#fff" : "#fff"}
                 strokeWidth={isInPath ? "3" : isHovered ? "2" : "1"}
-                opacity={isInPath ? "1" : isHovered ? "0.8" : "0.3"}
+                opacity={isInPath ? "3" : isHovered ? "1" : "1"}
                 className="cursor-pointer"
                 onMouseEnter={() => setHoveredEdge(edgeId)}
                 onMouseLeave={() => setHoveredEdge(null)}
@@ -100,7 +100,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
                   y={(fromNode.y + toNode.y) / 2}
                   textAnchor="middle"
                   className={`text-xs font-medium pointer-events-none ${
-                    isInPath ? 'fill-blue-300' : 'fill-slate-400'
+                    isInPath ? 'fill-white' : 'fill-white'
                   }`}
                   dy="4"
                 >
