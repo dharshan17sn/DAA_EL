@@ -28,9 +28,9 @@ export const useTSPSolver = (nodes: Node[], animationSpeed: number) => {
   const simulationTimeoutRef = useRef<NodeJS.Timeout>();
 
   const calculateComplexity = useCallback((n: number) => {
-    const timeComplexity = n <= 1 ? 'O(1)' : `O(n²·2ⁿ) ≈ O(${n}²·2^${n})`;
-    const spaceComplexity = n <= 1 ? 'O(1)' : `O(n·2ⁿ) ≈ O(${n}·2^${n})`;
-    const estimatedOps = n > 0 ? Math.pow(n, 2) * Math.pow(2, Math.min(n, 15)) : 0;
+    const timeComplexity = n <= 1 ? 'O(1)' : `O(n²·2ⁿ)`;
+    const spaceComplexity = n <= 1 ? 'O(1)' : `O(n·2ⁿ)`;
+    const estimatedOps = n > 0 ? Math.pow(n, 2) * Math.pow(2, Math.min(n, 12)) : 0;
     
     return { timeComplexity, spaceComplexity, estimatedOps };
   }, []);
@@ -50,7 +50,9 @@ export const useTSPSolver = (nodes: Node[], animationSpeed: number) => {
       isRunning: true, 
       isComplete: false,
       isSimulating: false,
-      simulationStep: 0
+      simulationStep: 0,
+      currentSolutions: [],
+      exploredSolutions: []
     }));
     setRecentSteps([]);
     setCurrentSolution(null);
@@ -61,25 +63,42 @@ export const useTSPSolver = (nodes: Node[], animationSpeed: number) => {
       
       const result = await solver.solve();
       
-      // Animate through the steps
+      // Faster animation - process steps in batches
       let stepIndex = 0;
+      const batchSize = Math.max(1, Math.floor(result.steps.length / 20)); // Process in batches
+      
       const animateStep = () => {
         if (stepIndex < result.steps.length) {
-          const step = result.steps[stepIndex];
+          const endIndex = Math.min(stepIndex + batchSize, result.steps.length);
+          const batchSteps = result.steps.slice(stepIndex, endIndex);
           
-          setRecentSteps(prev => [...prev, step]);
-          setCurrentSolution(step.solution);
+          // Process batch
+          const currentSols: PartialSolution[] = [];
+          const exploredSols: PartialSolution[] = [];
+          
+          batchSteps.forEach(step => {
+            if (step.action === 'explore' && !step.solution.isComplete) {
+              currentSols.push(step.solution);
+            } else {
+              exploredSols.push(step.solution);
+            }
+          });
+          
+          setRecentSteps(prev => [...prev, ...batchSteps]);
+          setCurrentSolution(batchSteps[batchSteps.length - 1].solution);
           
           setAlgorithmState(prev => ({
             ...prev,
-            currentStep: stepIndex + 1,
+            currentStep: endIndex,
             totalSteps: result.steps.length,
             bestSolution: result.bestSolution,
-            currentBestCost: result.bestSolution?.cost || Infinity
+            currentBestCost: result.bestSolution?.cost || Infinity,
+            currentSolutions: [...prev.currentSolutions, ...currentSols],
+            exploredSolutions: [...prev.exploredSolutions, ...exploredSols]
           }));
 
-          stepIndex++;
-          timeoutRef.current = setTimeout(animateStep, 1000 / animationSpeed);
+          stepIndex = endIndex;
+          timeoutRef.current = setTimeout(animateStep, 200 / animationSpeed); // Faster animation
         } else {
           // Animation complete
           setAlgorithmState(prev => ({
@@ -119,9 +138,8 @@ export const useTSPSolver = (nodes: Node[], animationSpeed: number) => {
         }));
         
         step++;
-        simulationTimeoutRef.current = setTimeout(animateSimulation, 1500 / animationSpeed);
+        simulationTimeoutRef.current = setTimeout(animateSimulation, 1000 / animationSpeed);
       } else {
-        // Simulation complete
         setAlgorithmState(prev => ({ 
           ...prev, 
           isSimulating: false,

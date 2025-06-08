@@ -34,31 +34,34 @@ export class TSPBranchAndBound {
       cost += this.matrix[path[i]][path[i + 1]];
     }
 
-    // Add minimum outgoing edge from last visited node to unvisited nodes
-    const lastNode = path[path.length - 1];
-    let minOutgoing = Infinity;
-    
-    for (let j = 0; j < this.n; j++) {
-      if (!visited.has(j) && j !== lastNode) {
-        minOutgoing = Math.min(minOutgoing, this.matrix[lastNode][j]);
+    // For incomplete paths, add minimum spanning tree estimate
+    if (path.length < this.n) {
+      const unvisited = Array.from({length: this.n}, (_, i) => i).filter(i => !visited.has(i));
+      
+      if (unvisited.length > 0) {
+        // Add minimum edge from last node to any unvisited node
+        const lastNode = path[path.length - 1];
+        let minFromLast = Infinity;
+        for (const node of unvisited) {
+          minFromLast = Math.min(minFromLast, this.matrix[lastNode][node]);
+        }
+        if (minFromLast !== Infinity) cost += minFromLast;
+
+        // Add MST cost for remaining unvisited nodes
+        if (unvisited.length > 1) {
+          cost += this.calculateMSTCost(unvisited);
+        }
+
+        // Add minimum edge back to start from any unvisited node
+        let minToStart = Infinity;
+        for (const node of unvisited) {
+          minToStart = Math.min(minToStart, this.matrix[node][path[0]]);
+        }
+        if (minToStart !== Infinity) cost += minToStart;
       }
-    }
-
-    if (minOutgoing !== Infinity) {
-      cost += minOutgoing;
-    }
-
-    // Add minimum spanning tree cost for unvisited nodes
-    const unvisited = Array.from({length: this.n}, (_, i) => i).filter(i => !visited.has(i));
-    
-    if (unvisited.length > 1) {
-      const mstCost = this.calculateMSTCost(unvisited);
-      cost += mstCost;
-    }
-
-    // Add cost to return to start
-    if (path.length === this.n) {
-      cost += this.matrix[lastNode][path[0]];
+    } else {
+      // Complete path - add return cost
+      cost += this.matrix[path[path.length - 1]][path[0]];
     }
 
     return cost;
@@ -145,7 +148,7 @@ export class TSPBranchAndBound {
     this.steps.push({
       solution: initialSolution,
       action: 'explore',
-      message: `Starting exploration from source node ${this.reverseNodeMap.get(startNodeIndex)}`,
+      message: `Starting from ${this.reverseNodeMap.get(startNodeIndex)}`,
       timestamp: Date.now()
     });
 
@@ -162,7 +165,7 @@ export class TSPBranchAndBound {
         this.steps.push({
           solution: current,
           action: 'prune',
-          message: `Pruned: Lower bound ${current.lowerBound.toFixed(1)} ≥ best cost ${this.bestCost.toFixed(1)}`,
+          message: `Pruned: bound ${current.lowerBound.toFixed(1)} ≥ best ${this.bestCost.toFixed(1)}`,
           timestamp: Date.now()
         });
         continue;
@@ -177,7 +180,7 @@ export class TSPBranchAndBound {
 
         if (totalCost < this.bestCost) {
           this.bestCost = totalCost;
-          this.bestPath = [...current.path, current.path[0]]; // Complete the cycle
+          this.bestPath = [...current.path, current.path[0]];
           
           this.steps.push({
             solution: {
@@ -187,7 +190,7 @@ export class TSPBranchAndBound {
               isComplete: true
             },
             action: 'complete',
-            message: `New best solution found! Total cost: ${totalCost.toFixed(1)}`,
+            message: `New best: ${totalCost.toFixed(1)}`,
             timestamp: Date.now()
           });
         }
@@ -217,7 +220,7 @@ export class TSPBranchAndBound {
             this.steps.push({
               solution: childSolution,
               action: 'explore',
-              message: `Exploring path: ${childSolution.path.join(' → ')}, Lower bound: ${childSolution.lowerBound.toFixed(1)}`,
+              message: `Exploring ${childSolution.path.join('→')}, bound: ${childSolution.lowerBound.toFixed(1)}`,
               timestamp: Date.now()
             });
           } else {
@@ -225,7 +228,7 @@ export class TSPBranchAndBound {
             this.steps.push({
               solution: childSolution,
               action: 'prune',
-              message: `Pruned immediately: Lower bound ${childSolution.lowerBound.toFixed(1)} ≥ best cost ${this.bestCost.toFixed(1)}`,
+              message: `Pruned ${childSolution.path.join('→')}: bound ${childSolution.lowerBound.toFixed(1)}`,
               timestamp: Date.now()
             });
           }
@@ -236,7 +239,7 @@ export class TSPBranchAndBound {
     const bestSolution = this.bestPath.length > 0 ? {
       id: 'final-solution',
       path: this.bestPath,
-      visited: new Set(this.bestPath.slice(0, -1)), // Exclude the duplicate start node
+      visited: new Set(this.bestPath.slice(0, -1)),
       cost: this.bestCost,
       lowerBound: this.bestCost,
       level: this.n,
